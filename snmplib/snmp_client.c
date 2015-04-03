@@ -152,6 +152,39 @@ snmp_pdu_create(int command)
 }
 
 
+/* Initializes a PDU structure.
+ * First zeros the PDU structure. Then the command and
+ * some default values are set.
+ * @param pdu       The PDU structure to initialize.
+ * @param command   The SNMP request command like SNMP_MSG_GET.
+ * @return          Returns 1 if structure is successfully initilized.
+ *                  Otherwise it returns 0.
+ */
+int
+snmp_pdu_init(netsnmp_pdu *pdu, int command)
+{
+    if (pdu == NULL)
+        return 0;
+    memset(pdu, 0, sizeof(netsnmp_pdu));
+    pdu->version = SNMP_DEFAULT_VERSION;
+    if (command < SNMP_MSG_GET || command > SNMP_MSG_REPORT)
+        return 0;
+    pdu->command = command;
+    pdu->errstat = SNMP_DEFAULT_ERRSTAT;
+    pdu->errindex = SNMP_DEFAULT_ERRINDEX;
+    pdu->securityModel = SNMP_DEFAULT_SECMODEL;
+    pdu->transport_data = NULL;
+    pdu->transport_data_length = 0;
+    pdu->securityNameLen = 0;
+    pdu->contextNameLen = 0;
+    pdu->time = 0;
+    pdu->reqid = snmp_get_next_reqid();
+    pdu->msgid = snmp_get_next_msgid();
+
+    return 1;
+}
+
+
 /*
  * Add a null variable with the requested name to the end of the list of
  * variables for this pdu.
