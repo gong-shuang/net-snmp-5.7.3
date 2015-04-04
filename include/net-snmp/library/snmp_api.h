@@ -365,6 +365,8 @@ typedef struct request_list {
     NETSNMP_IMPORT
     void            init_snmp(const char *);
     u_char         *snmp_pdu_build(netsnmp_pdu *, u_char *, size_t *);
+    NETSNMP_IMPORT
+    u_char         *snmp_build_message(netsnmp_pdu *pdu, size_t *length);
 #ifdef NETSNMP_USE_REVERSE_ASNENCODING
     u_char         *snmp_pdu_rbuild(netsnmp_pdu *, u_char *, size_t *);
 #endif

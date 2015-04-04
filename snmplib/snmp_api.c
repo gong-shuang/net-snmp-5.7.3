@@ -3258,6 +3258,72 @@ snmp_pdu_build(netsnmp_pdu *pdu, u_char * cp, size_t * out_length)
     return cp;
 }
 
+
+/* Build SNMP datagram.
+ * Creates a u_char array containing the whole SNMP message.
+ * The datagram could be wrapped in a UDP packet an sent to agent.
+ * @param pdu       A filled PDu structure.
+ * @param length    A sizet pointer to retrive the datagram length.
+ * @return u_char*  A pointer to the SNMP request datagram. Returns
+ *                  NULL if anything went wrong.
+ */
+u_char*
+snmp_build_message(netsnmp_pdu *pdu, size_t *length)
+{
+    *length = 0;
+    size_t bufferLength = 512;
+    u_char *buffer = (u_char*)malloc(bufferLength);
+    if (buffer == NULL) {
+        return NULL;
+    }
+
+    u_char *position = snmp_pdu_build(pdu, buffer, &bufferLength);
+    if (position == NULL) {
+        return NULL;
+    }
+    size_t pduLength = 512 - bufferLength;
+
+    //                          version               +             community           +   PDU
+    //                  data type | length | value    +    data type | length | value   +   PDU
+    size_t messageLength = 3 + 2 + pdu->community_len + pduLength;
+    *length = messageLength + 4;       // Sequence unit needs 4 bytes.
+
+    u_char *datagram = (u_char*)malloc(*length);
+    if (datagram == NULL) {
+        free(buffer);
+        return NULL;
+    }
+
+    // Message Sequence
+    datagram[0] = 48;           // Data type Sequence
+    datagram[1] = 128 + 2;      // Length value fallows in the next two bytes.
+    if (messageLength > 255*255) {
+        free(buffer);
+        return NULL;
+    }
+    datagram[2] = (u_char)messageLength / 255;          // high byte
+    datagram[3] = (u_char)messageLength % 255;          // low byte
+
+    // SNMP version
+    datagram[4] = ASN_INTEGER;
+    datagram[5] = 1;            // Length of version value.
+    datagram[6] = pdu->version;
+
+    // Community string
+    datagram[7] = ASN_OCTET_STR;
+    datagram[8] = pdu->community_len;
+    strncpy((char*)&datagram[9], (char*)pdu->community, pdu->community_len);
+
+    // PDU part
+    u_char *pduPosition = (u_char*)&datagram[9 + pdu->community_len];
+    memcpy((void*)pduPosition, (void*)buffer, pduLength);
+
+    // Free PDU buffer.
+    free(buffer);
+
+    return datagram;
+}
+
 #ifdef NETSNMP_USE_REVERSE_ASNENCODING
 /*
  * On error, returns 0 (likely an encoding problem).  
