@@ -3324,6 +3324,55 @@ snmp_build_message(netsnmp_pdu *pdu, size_t *length)
     return datagram;
 }
 
+
+/* Take a received message (datagram) and get a PDU structure out of it.
+ * @param pdu       A initialized PDU structure.
+ * @param message   The datagram.
+ * @param msgLength The length of datagram.
+ * @return          Returns 1 if successfully done. Otherwise returns 0.
+ */
+int
+snmp_parse_message(netsnmp_pdu *pdu, u_char *message, size_t *msgLength)
+{
+    if (!pdu || !message || !msgLength || message[0] != 48)
+        return 0;
+    // Sequence and length
+    int position = 1;
+    if (message[1] > 128) {
+        position += message[1] - 128;
+    } else {
+        ++position;
+    }
+    // Version
+    if (message[position] != ASN_INTEGER)
+        return 0;
+    else
+        ++position;
+    int versionLength = message[position++];
+    int version = 0;
+    for (int i=0; i<versionLength; ++i) {
+        version = version * 255 + message[position++];
+    }
+    if (version < SNMP_VERSION_1 || version > SNMP_VERSION_3)
+        return 0;
+    pdu->version = version;
+    // Community string
+    if (message[position++] != ASN_OCTET_STR)
+        return 0;
+    pdu->community_len = message[position++];
+    char *community = malloc(pdu->community_len);
+    strncpy(community, &message[position], pdu->community_len);
+    pdu->community = community;
+    // Message
+    position += pdu->community_len;
+    u_char* msgPosition = &message[position];
+    int result = snmp_pdu_parse(pdu, msgPosition, msgLength-position);
+    if (result != 0)
+        return 0;
+
+    return 1;
+}
+
 #ifdef NETSNMP_USE_REVERSE_ASNENCODING
 /*
  * On error, returns 0 (likely an encoding problem).  
