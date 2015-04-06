@@ -3326,7 +3326,7 @@ snmp_build_message(netsnmp_pdu *pdu, size_t *length)
 
 
 /* Take a received message (datagram) and get a PDU structure out of it.
- * @param pdu       A initialized PDU structure.
+ * @param pdu       A PDU structure.
  * @param message   The datagram.
  * @param msgLength The length of datagram.
  * @return          Returns 1 if successfully done. Otherwise returns 0.
